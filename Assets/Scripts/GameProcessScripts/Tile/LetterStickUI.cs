@@ -7,17 +7,53 @@ using UnityEngine.EventSystems;
 public class LetterStickUI : MonoBehaviour, IDropHandler
 {
 
-    public HandLetter Letter { get; set; }
+    private HandLetter Letter;
+
+    public HandLetter GetLetter()
+    {
+        return Letter;
+    }
+
+    public void SetLetter(HandLetter letter)
+    {
+        Letter = letter;
+    }
 
     public void OnDrop(PointerEventData eventData)
     {
-        HandLetter letter = eventData.pointerDrag.GetComponent<HandLetter>();
-
-        if (Letter != null && Letter != letter) return;
-
         if (eventData.pointerDrag != null)
-        {
-            letter.StickUI(this);
+        {   
+            HandLetter letter = eventData.pointerDrag.GetComponent<HandLetter>();
+
+            if (Letter != null && Letter != letter) return;
+
+            AssignLetter(letter);
         }
+    }
+
+    public void StickLetterBack()
+    {
+        if (Letter != null)
+        {
+            Letter.ResetToUI();
+        }
+    }
+
+    public void AssignLetter(HandLetter letter)
+    {
+        if (Letter == null) {
+            if (letter.TileUI != null)
+            {
+                letter.TileUI.UnassignLetter();
+            }
+            Letter = letter;
+            Letter.TileUI = this;
+            StickLetterBack();
+        }
+    }
+    
+    private void UnassignLetter()
+    {
+        Letter = null;
     }
 }

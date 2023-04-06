@@ -41,6 +41,11 @@ public class UIManager : NetworkBehaviour
 
     PlayersGameManager playersGameManager;
 
+
+
+    bool deletingLetters;
+
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -77,13 +82,13 @@ public class UIManager : NetworkBehaviour
         explodeStoreBtn.SetOnClickListener(() => { playersGameManager.ExplodeStoreServerRpc(); });
         refreshStoreBtn.SetActive(false);
         refreshStoreBtn.SetPrice(playersGameManager.GetRefreshPrice());
-        refreshStoreBtn.SetOnClickListener(() => { Debug.Log("yay2"); });
+        refreshStoreBtn.SetOnClickListener(() => { playersGameManager.RefreshHandServerRpc(); });
         healStoreBtn.SetActive(false);
         healStoreBtn.SetPrice(playersGameManager.GetHealPrice());   
-        healStoreBtn.SetOnClickListener(() => { Debug.Log("yay3"); });
+        healStoreBtn.SetOnClickListener(() => { playersGameManager.HealServerRpc(); });
         timerStoreBtn.SetActive(false);
         timerStoreBtn.SetPrice(playersGameManager.GetTimerPrice());
-        timerStoreBtn.SetOnClickListener(() => { Debug.Log("yay4"); });
+        timerStoreBtn.SetOnClickListener(() => { playersGameManager.DecreaseTimerServerRpc(); });
 
         sentLetters = new();
     }
@@ -111,14 +116,12 @@ public class UIManager : NetworkBehaviour
 
         foreach (LetterStickUI tile in tiles)
         {
-            if (tile.Letter != null && tile.Letter.Tile != null)
+            if (tile.GetLetter() != null && tile.GetLetter().Tile != null)
             {
-                LetterStick fieldTile = tile.Letter.Tile;
+                LetterStick fieldTile = tile.GetLetter().Tile;
 
-                updatedTiles.Add(fieldTile.XCoord, fieldTile.YCoord, tile.Letter.Value);
-                sentLetters.Add(tile.Letter);
-
-                tile.Letter = null;
+                updatedTiles.Add(fieldTile.XCoord, fieldTile.YCoord, tile.GetLetter().Value);
+                sentLetters.Add(tile.GetLetter());
             }
         }
 
@@ -126,9 +129,10 @@ public class UIManager : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void UpdateLetterTimerBarClientRpc(float timerValue, ClientRpcParams clientRpcParams = default)
+    public void UpdateLetterTimerBarClientRpc(float timerValue, float timerCap, ClientRpcParams clientRpcParams = default)
     {
         letterTimerBar.value = timerValue;
+        letterTimerBar.maxValue = timerCap;
     }
 
     [ClientRpc]
@@ -137,19 +141,18 @@ public class UIManager : NetworkBehaviour
         hpBar.value = hpValue;
     }
 
-
     [ClientRpc]
     public void GetLetterClientRpc(string letterValue, ClientRpcParams clientRpcParams = default)
     {
         foreach (LetterStickUI tile in tiles)
         {
-            if (tile.Letter == null)
+            if (tile.GetLetter() == null)
             {
                 HandLetter letter = Instantiate(letterPrefub);
 
                 letter.ChangeValue(letterValue);
 
-                letter.StickUI(tile);
+                tile.AssignLetter(letter);
                 return;
             }
         }
@@ -158,10 +161,30 @@ public class UIManager : NetworkBehaviour
     [ClientRpc]
     public void RemoveSentLettersClientRpc(ClientRpcParams clientRpcParams = default)
     {
+        RemoveSentLetters();
+    }
+
+    public void RemoveSentLetters()
+    {
         foreach (HandLetter letter in sentLetters)
         {
-            letter.TileUI.Letter = null;
+            letter.TileUI.SetLetter(null);
             Destroy(letter.gameObject);
+        }
+        sentLetters.Clear();
+    }
+
+    [ClientRpc]
+    public void ExplodeHandClientRpc(ClientRpcParams clientRpcParams = default)
+    {
+        RemoveSentLetters();
+        foreach (LetterStickUI tile in tiles)
+        {
+            if (tile.GetLetter() != null)
+            {
+                Destroy(tile.GetLetter().gameObject);
+                tile.SetLetter(null);
+            }
         }
     }
 
@@ -176,18 +199,6 @@ public class UIManager : NetworkBehaviour
         NotificationPopUp popUp = Instantiate(notificationPopUp, gameObject.transform.parent);
         popUp.SetPopUpText("Некорректное слово");
         StartCoroutine(DeletePopUp(popUp));
-    }
-
-    [ClientRpc]
-    public void ExplodeHandClientRpc(ClientRpcParams clientRpcParams = default)
-    {
-        foreach (LetterStickUI tile in tiles)
-        {
-            if (tile.Letter != null)
-            {
-                Destroy(tile.Letter.gameObject);
-            }
-        }
     }
 
     [ClientRpc]
@@ -218,9 +229,9 @@ public class UIManager : NetworkBehaviour
     {
         foreach (LetterStickUI tile in tiles)
         {
-            if (tile.Letter != null)
+            if (tile.GetLetter() != null)
             {
-                Destroy(tile.Letter.gameObject);
+                Destroy(tile.GetLetter().gameObject);
             }
         }
 

@@ -72,25 +72,6 @@ public class HandLetter : MonoBehaviour, ILetter, IPointerDownHandler, IPointerU
         GetComponent<RectTransform>().localScale = Vector3.one;
     }
 
-    public void StickUI(LetterStickUI tile)
-    {
-        if (TileUI != null) TileUI.Letter = null;
-        if (Tile != null)
-        {
-            Tile.Letter = null;
-            Tile = null;
-        }
-        TileUI = tile;
-        tile.Letter = this;
-
-        rectTransform.SetParent(UIManager.Instance.HandLetterUI.transform);
-
-        rectTransform.anchorMax = new Vector2(0.5f, 0);
-        rectTransform.anchorMin = new Vector2(0.5f, 0);
-        rectTransform.anchoredPosition = tile.GetComponent<RectTransform>().anchoredPosition; 
-        GetComponent<RectTransform>().localScale = Vector3.one;
-    }
-
     public void ResetPosition()
     {
         if (Tile != null)
@@ -99,7 +80,7 @@ public class HandLetter : MonoBehaviour, ILetter, IPointerDownHandler, IPointerU
         }
         else
         {
-            StickUI(TileUI);
+            ResetToUI();
         }
     }
 
@@ -110,17 +91,23 @@ public class HandLetter : MonoBehaviour, ILetter, IPointerDownHandler, IPointerU
             Tile.Letter = null;
             Tile = null;
         }
-        StickUI(TileUI);
+
+        rectTransform.SetParent(UIManager.Instance.HandLetterUI.transform);
+
+        rectTransform.anchorMax = new Vector2(0.5f, 0);
+        rectTransform.anchorMin = new Vector2(0.5f, 0);
+        rectTransform.anchoredPosition = TileUI.GetComponent<RectTransform>().anchoredPosition;
+        GetComponent<RectTransform>().localScale = Vector3.one;
     }
 
     public void ChangeValue(string value)
     {
         Value = value;
 
-        GetComponent<SpriteRenderer>().sprite =
-                    Resources.Load(Path.Combine("Sprites", "Letters", "Russian", value), typeof(Sprite)) as Sprite;
-        GetComponent<Image>().sprite =
-            Resources.Load(Path.Combine("Sprites", "Letters", "Russian", value), typeof(Sprite)) as Sprite;
+        Sprite sprite = Resources.Load(Path.Combine("Sprites", "Letters", "Russian", value), typeof(Sprite)) as Sprite;
+
+        GetComponent<SpriteRenderer>().sprite = sprite;
+        GetComponent<Image>().sprite = sprite;
     }
 
     public string GetValue()

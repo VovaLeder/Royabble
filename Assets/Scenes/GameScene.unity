@@ -1857,12 +1857,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98acc9e4eac2e6348bba87743e492d8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  defaultLetterTimerCap: 2
+  defaultLetterTimerCap: 1.52
   MAX_HP: 100
   explodePrice: 5
   refreshPrice: 5
   healPrice: 5
+  healAmount: 50
   timerPrice: 5
+  timerDecreaseMultiplyer: 0.75
 --- !u!114 &729420063
 MonoBehaviour:
   m_ObjectHideFlags: 0

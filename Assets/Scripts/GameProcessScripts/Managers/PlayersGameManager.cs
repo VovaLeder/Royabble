@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Common;
 using Unity.Collections;
-using UnityEditor.PackageManager;
+using Unity.Services.Lobbies.Models;
 
 public class PlayersGameManager : NetworkBehaviour
 {
@@ -54,7 +54,14 @@ public class PlayersGameManager : NetworkBehaviour
     [SerializeField] private int explodePrice;
     [SerializeField] private int refreshPrice;
     [SerializeField] private int healPrice;
+    [Range(0, 100)]
+    [SerializeField] private float healAmount;
     [SerializeField] private int timerPrice;
+    [Range(0.5f, 1)]
+    [SerializeField] private float timerDecreaseMultiplyer;
+
+    private float updateHpBarTimer;
+    private float updateHpBarTimerCap;
 
     public static PlayersGameManager Instance { get; private set; }
 
@@ -71,6 +78,9 @@ public class PlayersGameManager : NetworkBehaviour
         {
             Instance = this;
         }
+
+        updateHpBarTimer = 0;
+        updateHpBarTimerCap = 1;
 
         playerGameDataList = new();
         playerGameDataNetworkList = new NetworkList<PlayerGameNetworkData>();
@@ -97,6 +107,17 @@ public class PlayersGameManager : NetworkBehaviour
     void Update()
     {
         if (NetworkManager.Singleton.IsHost) UpdateHandsInfos();
+
+        if (TimeToUpdateHpBar())
+        {
+            updateHpBarTimer = 0;
+        }
+        updateHpBarTimer += Time.deltaTime;
+    }
+
+    private bool TimeToUpdateHpBar()
+    {
+        return updateHpBarTimer > updateHpBarTimerCap;
     }
 
     public int GetLetterValue(string letter)
@@ -298,7 +319,7 @@ public class PlayersGameManager : NetworkBehaviour
             if (playerGameData.letterTimer > playerGameData.letterTimerCap)
             {
                 playerGameData.letterTimer = 0;
-                UIManager.Instance.UpdateLetterTimerBarClientRpc(playerGameData.letterTimer, clientRpcParams);
+                UIManager.Instance.UpdateLetterTimerBarClientRpc(playerGameData.letterTimer, playerGameData.letterTimerCap, clientRpcParams);
                 if (playerGameData.hand.Count < 7)
                 {
                     string randomLetter = Letters[Random.Range(0, Letters.Length)].ToString();
@@ -383,12 +404,137 @@ public class PlayersGameManager : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void RefreshHandServerRpc()
+    public void RefreshHandServerRpc(ServerRpcParams serverRpcParams = default)
     {
+        ulong clientId = serverRpcParams.Receive.SenderClientId;
 
+        if (!NetworkManager.ConnectedClients.ContainsKey(clientId))
+        {
+            return;
+        }
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { clientId }
+            }
+        };
+        PlayerGameData playerGameData = GetPlayerGameData(clientId);
+
+        if (playerGameData.availablePoints < refreshPrice)
+        {
+            UIManager.Instance.ShowPopUpClientRpc($"Нужно {refreshPrice} очков, чтобы использовать предмет", clientRpcParams);
+            return;
+        }
+
+        UIManager.Instance.ExplodeHandClientRpc(clientRpcParams);
+        playerGameData.hand.Clear();
+
+        for (int i = 0; i < 7; i++)
+        {
+            string randomLetter = Letters[Random.Range(0, Letters.Length)].ToString();
+            UIManager.Instance.GetLetterClientRpc(randomLetter, clientRpcParams);
+            playerGameData.hand.Add(randomLetter);
+        }
+        ChangePlayerPoints(-refreshPrice, clientId);
     }
 
     #endregion
+
+    public void PlayerInZone(ulong playerId)
+    {
+        ChangePlayerHp(playerId, -Time.deltaTime);
+    }
+
+    private void ChangePlayerHp(ulong playerId, float value, bool updateHealthBar = false)
+    {
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { playerId }
+            }
+        };
+        var playerGame = GetPlayerGameData(playerId);
+
+        playerGame.hp += value;
+        if (playerGame.hp < 0)
+        {
+            KillPlayer(playerId);
+        }
+        if (playerGame.hp > MAX_HP)
+        {
+            playerGame.hp = MAX_HP;
+        }
+
+        if (TimeToUpdateHpBar() || updateHealthBar)
+        {
+            UIManager.Instance.UpdateHpBarClientRpc(playerGame.hp, clientRpcParams);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void HealServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        ulong clientId = serverRpcParams.Receive.SenderClientId;
+
+        if (!NetworkManager.ConnectedClients.ContainsKey(clientId))
+        {
+            return;
+        }
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { clientId }
+            }
+        };
+        PlayerGameData playerGameData = GetPlayerGameData(clientId);
+
+        if (playerGameData.availablePoints < refreshPrice)
+        {
+            UIManager.Instance.ShowPopUpClientRpc($"Нужно {healPrice} очков, чтобы использовать предмет", clientRpcParams);
+            return;
+        }
+
+        ChangePlayerHp(clientId, healAmount, true);
+
+        ChangePlayerPoints(-healPrice, clientId);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void DecreaseTimerServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        ulong clientId = serverRpcParams.Receive.SenderClientId;
+
+        if (!NetworkManager.ConnectedClients.ContainsKey(clientId))
+        {
+            return;
+        }
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { clientId }
+            }
+        };
+        PlayerGameData playerGameData = GetPlayerGameData(clientId);
+
+        if (playerGameData.availablePoints < refreshPrice)
+        {
+            UIManager.Instance.ShowPopUpClientRpc($"Нужно {timerPrice} очков, чтобы использовать предмет", clientRpcParams);
+            return;
+        }
+
+
+        playerGameData.letterTimerCap *= timerDecreaseMultiplyer;
+
+
+        ChangePlayerPoints(-timerPrice, clientId);
+    }
 
 
 }

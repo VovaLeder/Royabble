@@ -30,9 +30,6 @@ public class TileFieldManager : NetworkBehaviour
 
     private string[] _ALL_WORDS;
 
-    private float updateHpBarTimer;
-    private float updateHpBarTimerCap;
-
     UIManager uiManager;
     PlayersGameManager playersGameManager;
 
@@ -50,9 +47,6 @@ public class TileFieldManager : NetworkBehaviour
 
     void Start()
     {
-        updateHpBarTimer = 0; 
-        updateHpBarTimerCap = 1;
-
         CreateTileField();
 
         TextAsset txtAsset =
@@ -70,16 +64,6 @@ public class TileFieldManager : NetworkBehaviour
             UpdateZoneInfo();
             CheckForPlayersInZone();
         }
-        if (TimeToUpdateHpBar())
-        {
-            updateHpBarTimer = 0;
-        }
-        updateHpBarTimer += Time.deltaTime;
-    }
-
-    private bool TimeToUpdateHpBar()
-    {
-        return updateHpBarTimer > updateHpBarTimerCap;
     }
 
     private void CheckForPlayersInZone()
@@ -88,7 +72,6 @@ public class TileFieldManager : NetworkBehaviour
         {
             bool isInZone = true;
             var playerNetwork = playersGameManager.GetPlayerNetworkData(playerId);
-            var playerGame = playersGameManager.GetPlayerGameData(playerId);
 
             if (!playerNetwork.alive) continue;
 
@@ -103,24 +86,7 @@ public class TileFieldManager : NetworkBehaviour
             }
             if (isInZone)
             {
-                ClientRpcParams clientRpcParams = new ClientRpcParams
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { playerId }
-                    }
-                };
-
-                playerGame.hp -= Time.deltaTime;
-                if (playerGame.hp < 0)
-                {
-                    PlayersGameManager.Instance.KillPlayer(playerId);
-                }
-
-                if (TimeToUpdateHpBar())
-                {
-                    uiManager.UpdateHpBarClientRpc(playerGame.hp, clientRpcParams);
-                }
+                playersGameManager.PlayerInZone(playerId);
             }
         }
     }
@@ -234,6 +200,11 @@ public class TileFieldManager : NetworkBehaviour
         if (!playersGameManager.IsPlayerAlive(clientId))
         {
             uiManager.DedgeClientRpc(clientRpcParams);
+            return;
+        }
+
+        if (updatedTiles.Count == 0)
+        {
             return;
         }
 

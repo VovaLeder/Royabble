@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 public class LobbySelectUI : MonoBehaviour
 {
-
-    [SerializeField] private Button mainMenyBtn;
     [SerializeField] private Button createLobbyBtn;
     [SerializeField] private Button quickJoinBtn;
     [SerializeField] private Button joinByCodeBtn;
@@ -21,9 +19,6 @@ public class LobbySelectUI : MonoBehaviour
 
     void Awake() 
     {
-        mainMenyBtn.onClick.AddListener(() => {
-            Loader.Load(Loader.Scene.MainMenuScene);
-        });
         createLobbyBtn.onClick.AddListener(() => {
             lobbyCreateUI.Show();
         });

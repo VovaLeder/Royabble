@@ -60,7 +60,7 @@ public class LobbyManager : MonoBehaviour
 
     private void HandlePeriodicListLobbies()
     {
-        if (joinedLobby != null || !AuthenticationService.Instance.IsSignedIn || SceneManager.GetActiveScene().name != Loader.Scene.LobbySelectScene.ToString()) return;
+        if (joinedLobby != null || !AuthenticationService.Instance.IsSignedIn || SceneManager.GetActiveScene().name != Loader.Scene.MainMenuScene.ToString()) return;
 
         listLobbiesTimer -= Time.deltaTime;
         if (listLobbiesTimer <= 0)

@@ -27,6 +27,9 @@ public class UIManager : NetworkBehaviour
     [SerializeField] private Button mainMenuBtn;
     [SerializeField] private Slider hpBar;
 
+    [Space]
+    [SerializeField] private OverlapMessage overlapMessage;
+
     [Header("Store")]
     [SerializeField] private TextMeshProUGUI availablePointsText;
     [SerializeField] private StoreBtn explodeStoreBtn;
@@ -40,10 +43,6 @@ public class UIManager : NetworkBehaviour
     private List<HandLetter> sentLetters;
 
     PlayersGameManager playersGameManager;
-
-
-
-    bool deletingLetters;
 
 
     private void Awake()
@@ -91,6 +90,8 @@ public class UIManager : NetworkBehaviour
         timerStoreBtn.SetOnClickListener(() => { playersGameManager.DecreaseTimerServerRpc(); });
 
         sentLetters = new();
+
+        overlapMessage.Hide();
     }
 
     private void Update()
@@ -210,13 +211,6 @@ public class UIManager : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void MakeDedgeClientRpc(ClientRpcParams clientRpcParams = default)
-    {
-        NotificationPopUp popUp = Instantiate(notificationPopUp, gameObject.transform.parent);
-        popUp.SetPopUpText("Ты погиб :( Dedge Sadge");
-    }
-
-    [ClientRpc]
     public void ShowPopUpClientRpc(string message, ClientRpcParams clientRpcParams = default)
     {
         NotificationPopUp popUp = Instantiate(notificationPopUp, gameObject.transform.parent);
@@ -236,6 +230,12 @@ public class UIManager : NetworkBehaviour
         }
 
         // Update
+    }
+
+    [ClientRpc]
+    public void ShowOverlapMessageClientRpc(string text, ClientRpcParams clientRpcParams = default)
+    {
+        overlapMessage.Show(text);
     }
 
     IEnumerator DeletePopUp (NotificationPopUp popUp)

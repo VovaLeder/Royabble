@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Common;
 using Unity.Collections;
-using Unity.Services.Lobbies.Models;
 
 public class PlayersGameManager : NetworkBehaviour
 {
@@ -68,6 +66,8 @@ public class PlayersGameManager : NetworkBehaviour
     NetworkList<PlayerGameNetworkData> playerGameDataNetworkList;
     List<PlayerGameData> playerGameDataList;
 
+    bool gameIsGoing;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -84,6 +84,8 @@ public class PlayersGameManager : NetworkBehaviour
 
         playerGameDataList = new();
         playerGameDataNetworkList = new NetworkList<PlayerGameNetworkData>();
+
+        gameIsGoing = true;
         //TODO playerGameDataNetworkList.OnListChanged += playerGameDataNetwork_OnListChanged;
     }
 
@@ -100,19 +102,32 @@ public class PlayersGameManager : NetworkBehaviour
                     currentWord = new(),
                     alive = true,
                 });
+
+                ClientRpcParams clientRpcParams = new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { playerGameData.clientId }
+                    }
+                };
+
+                StatisticsManager.Instance.AddGameToCurrentUserClientRpc(clientRpcParams);
             }
         }
     }
 
     void Update()
     {
-        if (NetworkManager.Singleton.IsHost) UpdateHandsInfos();
-
-        if (TimeToUpdateHpBar())
+        if (gameIsGoing)
         {
-            updateHpBarTimer = 0;
+            if (NetworkManager.Singleton.IsHost) UpdateHandsInfos();
+
+            if (TimeToUpdateHpBar())
+            {
+                updateHpBarTimer = 0;
+            }
+            updateHpBarTimer += Time.deltaTime;
         }
-        updateHpBarTimer += Time.deltaTime;
     }
 
     private bool TimeToUpdateHpBar()
@@ -244,14 +259,9 @@ public class PlayersGameManager : NetworkBehaviour
 
     public void ChangePlayerPoints(int pointsShift, ulong id)
     {
-        var playerGameData = GetPlayerGameData(id);
-        playerGameData.availablePoints += pointsShift;
-        if (pointsShift > 0)
-        {
-            playerGameData.points += pointsShift;
-        }
+        StatisticsManager statisticsManager = StatisticsManager.Instance;
 
-        ClientRpcParams defeatedPlayerRpcParams = new ClientRpcParams
+        ClientRpcParams clientPlayerRpcParams = new ClientRpcParams
         {
             Send = new ClientRpcSendParams
             {
@@ -259,7 +269,34 @@ public class PlayersGameManager : NetworkBehaviour
             }
         };
 
-        UIManager.Instance.SetAvailablePointsClientRpc(playerGameData.availablePoints, defeatedPlayerRpcParams);
+        var playerGameData = GetPlayerGameData(id);
+        playerGameData.availablePoints += pointsShift;
+        if (pointsShift > 0)
+        {
+            statisticsManager.AddEarnedPointsToCurrentUserClientRpc(pointsShift, clientPlayerRpcParams);
+            playerGameData.points += pointsShift;
+        }
+        else
+        {
+            statisticsManager.AddSpentPointsToCurrentUserClientRpc(-pointsShift, clientPlayerRpcParams);
+        }
+
+        UIManager.Instance.SetAvailablePointsClientRpc(playerGameData.availablePoints, clientPlayerRpcParams);
+    }
+
+    public void KillPlayer(ulong idKilled, ulong idKiller)
+    {
+        KillPlayer(idKilled);
+
+        ClientRpcParams killerPlayerRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { idKiller }
+            }
+        };
+
+        StatisticsManager.Instance.AddKilledPlayerToCurrentUserClientRpc(killerPlayerRpcParams);
     }
 
     public void KillPlayer(ulong id)
@@ -277,7 +314,31 @@ public class PlayersGameManager : NetworkBehaviour
             }
         };
 
-        UIManager.Instance.MakeDedgeClientRpc(defeatedPlayerRpcParams);
+        UIManager.Instance.ShowOverlapMessageClientRpc("Вы мертвы, лол :)", defeatedPlayerRpcParams);
+
+        var playersAlive = 0;
+        foreach (var playerGameNetworkData in playerGameDataNetworkList)
+        {
+            if (playerGameNetworkData.alive)
+            {
+                playerInfo = playerGameNetworkData;
+                playersAlive++;
+            }
+        }
+        if (playersAlive < 2)
+        {
+            ClientRpcParams clientRpcParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { playerInfo.clientId }
+                }
+            };
+
+            gameIsGoing = false;
+            StatisticsManager.Instance.AddWonGameToCurrentUserClientRpc(clientRpcParams);
+            UIManager.Instance.ShowOverlapMessageClientRpc("Победитель. МЕГА ХОРОШ", clientRpcParams);
+        }
     }
 
     public bool IsPlayerAlive(ulong id)
@@ -298,6 +359,16 @@ public class PlayersGameManager : NetworkBehaviour
         PlayerGameNetworkData playerInfo = playerGameDataNetworkList[playerInfoIndex];
         playerInfo.currentWord = newFixedWord;
         playerGameDataNetworkList[playerInfoIndex] = playerInfo;
+
+        ClientRpcParams defeatedPlayerRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { clientId }
+            }
+        };
+
+        StatisticsManager.Instance.AddComposedWordToCurrentUserClientRpc(defeatedPlayerRpcParams);
     }
 
     #region handManaging
@@ -306,6 +377,8 @@ public class PlayersGameManager : NetworkBehaviour
     {
         foreach (var playerGameData in playerGameDataList)
         {
+            if (!IsPlayerAlive(playerGameData.clientId)) continue;
+
             ClientRpcParams clientRpcParams = new ClientRpcParams
             {
                 Send = new ClientRpcSendParams

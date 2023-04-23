@@ -244,7 +244,7 @@ public class TileFieldManager : NetworkBehaviour
                             );
                     }
 
-                    playersGameManager.KillPlayer(defeatedPlayerId);
+                    playersGameManager.KillPlayer(defeatedPlayerId, clientId);
                 }
             }
 

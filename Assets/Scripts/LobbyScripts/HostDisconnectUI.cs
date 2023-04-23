@@ -11,14 +11,13 @@ public class HostDisconnectUI : MonoBehaviour
 
     private void Start()
     {
-        Hide();
-
         NetworkManager.Singleton.OnClientDisconnectCallback += NetworkManager_OnClientDisconnectCallback;
 
         mainMenuBtn.onClick.AddListener(() => {
             Loader.Load(Loader.Scene.MainMenuScene);
         });
 
+        Hide();
     }
 
     private void NetworkManager_OnClientDisconnectCallback(ulong clientId)

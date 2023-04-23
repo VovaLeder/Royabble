@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -37,8 +38,22 @@ public class LobbyReady : NetworkBehaviour
         }
         else
         {
+            NetworkManager.Singleton.OnClientDisconnectCallback += Singleton_OnClientDisconnectCallback;
             playBtn.interactable = false;
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (NetworkManager.Singleton.IsHost)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= Singleton_OnClientDisconnectCallback;
+        }
+    }
+
+    private void Singleton_OnClientDisconnectCallback(ulong obj)
+    {
+        CheckForReadyPlayers(true);
     }
 
     public void SetPlayerReady()
@@ -54,11 +69,19 @@ public class LobbyReady : NetworkBehaviour
         playerReadyDictionary[senderId] = playerReadyDictionary.ContainsKey(senderId) ? !playerReadyDictionary[senderId] : true;
         SetPlayerReadyClientRpc(senderId, playerReadyDictionary[senderId]);
 
+        CheckForReadyPlayers();
+    }
+
+    private void CheckForReadyPlayers(bool onClientDisconnect = false)
+    {
         bool allClientsReady = true;
-        
+
         foreach (ulong clientId in NetworkManager.Singleton.ConnectedClientsIds)
         {
-            if (!playerReadyDictionary.ContainsKey(clientId) || !playerReadyDictionary[clientId]) {
+            if (!playerReadyDictionary.ContainsKey(clientId) || !playerReadyDictionary[clientId] ||
+                    //true)
+                    playerReadyDictionary.Where(x => NetworkManager.Singleton.ConnectedClientsIds.Contains(x.Key) && x.Value).Count() < (onClientDisconnect ? 3 : 2))
+            {
                 allClientsReady = false;
                 break;
             }

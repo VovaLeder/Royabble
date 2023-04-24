@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -139,8 +138,6 @@ public class TileFieldManager : NetworkBehaviour
             }
         }
     }
-
-
     public void ExplodeField(List<Pair> playerWord)
     {
         int iMax = -1;               int jMax = -1;
@@ -231,21 +228,7 @@ public class TileFieldManager : NetworkBehaviour
 
             foreach (var defeatedPlayerId in defeatedPlayers)
             {
-                PlayerGameNetworkData defeatedPlayerGameData = playersGameManager.GetPlayerNetworkData(defeatedPlayerId);
-                foreach ((int i, int j) in defeatedPlayerGameData.GetCurrentWord())
-                {
-                    if (tiles[i, j].Letter is FixedLetter fixedLetter)
-                    {
-                        fixedLetter.resetOwner();
-                        ownedTilesObj.Add(
-                            new(fixedLetter.GetCoords().i, fixedLetter.GetCoords().j, true, 
-                                new(fixedLetter.GetCoords().i, fixedLetter.GetCoords().j, fixedLetter.Value, fixedLetter.hasOwner, fixedLetter.ownerId)
-                                )
-                            );
-                    }
-
-                    playersGameManager.KillPlayer(defeatedPlayerId, clientId);
-                }
+                playersGameManager.KillPlayer(defeatedPlayerId, clientId);
             }
 
             List<Pair> newCurrentWord = new();
@@ -304,39 +287,6 @@ public class TileFieldManager : NetworkBehaviour
                 tiles[updatedTile.i, updatedTile.j].DeleteLetter();
             }
         }
-    }
-
-    public void UpdateField(ulong id)
-    {
-        TileLetterInfoCollection list = new();
-
-        ClientRpcParams clientRpcParams = new ClientRpcParams
-        {
-            Send = new ClientRpcSendParams
-            {
-                TargetClientIds = new ulong[] { id }
-            }
-        };
-
-        for (int i = 0; i < NumberOfTiles; i++)
-        {
-            for (int j = 0; j < NumberOfTiles; j++)
-            {
-                var tile = tiles[i, j];
-                if (tile.Letter is FixedLetter letter)
-                {
-                    list.Add(new(i, j, true, new(i, j, letter.Value, letter.hasOwner, letter.ownerId)));
-                }
-                else
-                {
-                    list.Add(new(i, j, false, new()));
-                }
-
-            }
-            UpdateTilesClientRPC(list, clientRpcParams);
-            list = new();
-        }
-
     }
 
     public bool ValidateWord(NetLetterInfoCollection newWord, ulong playerId, out List<ulong> defeatedPlayers, out HashSet<(int i, int j)> newPlayerWord)
@@ -573,7 +523,7 @@ public class TileFieldManager : NetworkBehaviour
         return true;
     }
 
-    public bool CheckForLetterOnField(int i, int j, out FixedLetter letter)
+    private bool CheckForLetterOnField(int i, int j, out FixedLetter letter)
     {
         letter = null;
         if (i < 0 || j < 0 || i > NumberOfTiles || j > NumberOfTiles)
@@ -588,9 +538,29 @@ public class TileFieldManager : NetworkBehaviour
         return false;
     }
 
-    public bool CheckForLetterOnField(int i, int j)
+    private bool CheckForLetterOnField(int i, int j)
     {
         return tiles[i, j].Letter is FixedLetter;
+    }
+
+    public void ResetOwnership(ulong defeatedPlayerId)
+    {
+        TileLetterInfoCollection ownedTilesObj = new();
+
+        PlayerGameNetworkData defeatedPlayerGameData = playersGameManager.GetPlayerNetworkData(defeatedPlayerId);
+        foreach ((int i, int j) in defeatedPlayerGameData.GetCurrentWord())
+        {
+            if (tiles[i, j].Letter is FixedLetter fixedLetter)
+            {
+                fixedLetter.resetOwner();
+                ownedTilesObj.Add(
+                    new(fixedLetter.GetCoords().i, fixedLetter.GetCoords().j, true,
+                        new(fixedLetter.GetCoords().i, fixedLetter.GetCoords().j, fixedLetter.Value, fixedLetter.hasOwner, fixedLetter.ownerId)
+                        )
+                    );
+            }
+        }
+        UpdateTilesClientRPC(ownedTilesObj);
     }
 
 }

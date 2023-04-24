@@ -113,7 +113,20 @@ public class PlayersGameManager : NetworkBehaviour
 
                 StatisticsManager.Instance.AddGameToCurrentUserClientRpc(clientRpcParams);
             }
+
+            NetworkManager.Singleton.OnClientDisconnectCallback += NetworkManager_OnClientDisconnectCallback;
         }
+    }
+
+    private void NetworkManager_OnClientDisconnectCallback(ulong obj)
+    {
+        KillPlayer(obj);
+    }
+
+    public override void OnDestroy()
+    {
+        base.OnDestroy();
+        NetworkManager.Singleton.OnClientDisconnectCallback -= NetworkManager_OnClientDisconnectCallback;
     }
 
     void Update()
@@ -305,16 +318,19 @@ public class PlayersGameManager : NetworkBehaviour
         PlayerGameNetworkData playerInfo = playerGameDataNetworkList[index];
         playerInfo.alive = false;
         playerGameDataNetworkList[index] = playerInfo;
+        TileFieldManager.Instance.ResetOwnership(id);
 
-        ClientRpcParams defeatedPlayerRpcParams = new ClientRpcParams
-        {
-            Send = new ClientRpcSendParams
+        if (NetworkManager.Singleton.ConnectedClientsIds.Contains(id)){
+            ClientRpcParams defeatedPlayerRpcParams = new ClientRpcParams
             {
-                TargetClientIds = new ulong[] { id }
-            }
-        };
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { id }
+                }
+            };
 
-        UIManager.Instance.ShowOverlapMessageClientRpc("Вы мертвы, лол :)", defeatedPlayerRpcParams);
+            UIManager.Instance.ShowOverlapMessageClientRpc("Вы мертвы, лол :)", defeatedPlayerRpcParams);
+        }
 
         var playersAlive = 0;
         foreach (var playerGameNetworkData in playerGameDataNetworkList)

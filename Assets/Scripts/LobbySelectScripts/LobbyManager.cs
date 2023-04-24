@@ -65,7 +65,7 @@ public class LobbyManager : MonoBehaviour
         listLobbiesTimer -= Time.deltaTime;
         if (listLobbiesTimer <= 0)
         {
-            listLobbiesTimer = 3;
+            listLobbiesTimer = 1;
             ListLobbies();
         }
     }

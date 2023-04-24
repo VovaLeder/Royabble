@@ -111,7 +111,7 @@ public class StatisticsManager : NetworkBehaviour
         //Send the request then wait here until it returns
         yield return req.SendWebRequest();
 
-        if (req.isNetworkError)
+        if (req.result == UnityWebRequest.Result.ConnectionError)
         {
             networkUnavailable = true;
             Debug.Log("Error While Sending: " + req.error);
@@ -155,7 +155,7 @@ public class StatisticsManager : NetworkBehaviour
         //Send the request then wait here until it returns
         yield return req.SendWebRequest();
 
-        if (req.isNetworkError)
+        if (req.result == UnityWebRequest.Result.ConnectionError)
         {
             networkUnavailable = true;
             Debug.Log("Error While Sending: " + req.error);
@@ -201,7 +201,7 @@ public class StatisticsManager : NetworkBehaviour
         //Send the request then wait here until it returns
         yield return req.SendWebRequest();
 
-        if (req.isNetworkError)
+        if (req.result == UnityWebRequest.Result.ConnectionError)
         {
             networkUnavailable = true;
             Debug.Log("Error While Sending: " + req.error);
@@ -240,7 +240,7 @@ public class StatisticsManager : NetworkBehaviour
         //Send the request then wait here until it returns
         yield return req.SendWebRequest();
 
-        if (req.isNetworkError)
+        if (req.result == UnityWebRequest.Result.ConnectionError)
         {
             networkUnavailable = true;
             Debug.Log("Error While Sending: " + req.error);
